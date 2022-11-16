@@ -1,0 +1,105 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Resources": {
+    "FeeReminder": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "FunctionName": "FeeReminder",
+        "Handler": "lambda/index.handler",
+        "Role": {
+          "Fn::GetAtt": [
+            "FeeReminderRole",
+            "Arn"
+          ]
+        },
+        "Code": {
+          "S3Bucket": "fee-reminder-function",
+          "S3Key": "FeeReminderCode"
+        },
+        "Runtime": "nodejs12.0",
+        "Timeout": 300
+      }
+    },
+  "FeeReminderRole": {
+    "Type": "AWS::IAM::Role",
+    "Properties": {
+      "RoleName": "FeeReminderRole",
+      "AssumeRolePolicyDocument": {
+        "Version": "2012-10-17",
+        "Statement": [{
+          "Effect": "Allow",
+          "Principal": {
+            "Service": [ "lambda.amazonaws.com" ]
+          },
+          "Action": [ "sts:AssumeRole" ]
+        }]
+      },
+      "Path": "/",
+      "Policies": [{
+        "PolicyName": "AWSLambdaBasicExecutionRole",
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [{
+            "Effect": "Allow",
+            "Action": [
+              "logs:CreateLogGroup",
+              "logs:CreateLogStream",
+              "logs:PutLogEvents"
+            ],
+            "Resource": "*"
+          }]
+        }
+      },
+      {
+        "PolicyName": "AmazonS3FullAccess",
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [{
+            "Effect": "Allow",
+            "Action": "s3:*",
+            "Resource": [
+              "arn:aws:s3:::exchange-data-raw",
+              "arn:aws:s3:::exchange-data-raw/*"
+            ]
+          }]
+        }
+      }]
+    }
+  },
+
+  "FeeReminderSchedule": {
+    "Type": "AWS::Events::Rule",
+    "Properties": {
+      "Name": "FeeReminderSchedule",
+      "Description": "Triggers a noification for fee",
+      "ScheduleExpression": "rate(7 days)",
+      "Targets": [{
+        "Id": "FeeReminderScheduleTarget",
+        "Arn": {
+          "Fn::GetAtt": [ "FeeReminder", "Arn" ]
+        }
+      }],
+      "State": "ENABLED"
+    }
+  },
+
+  "FeeReminderScheduleInvokeLambdaPermission": {
+    "Type": "AWS::Lambda::Permission",
+    "Properties": {
+      "FunctionName": { "Ref": "FeeReminder" },
+      "Action": "lambda:InvokeFunction",
+      "Principal": "events.amazonaws.com",
+      "SourceArn": { "Fn::GetAtt": [ "FeeReminderSchedule", "Arn" ] }
+    }
+  }
+
+
+  }
+
+}
+
+
+
+
+
+
